@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code local session state
+.claude/
+
+# Large raw dataset files that exceed GitHub's size limits (download via Kaggle/Colab instead)
+data/raw/sessions.csv
