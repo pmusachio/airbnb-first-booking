@@ -220,5 +220,13 @@ __marimo__/
 # Claude Code local session state
 .claude/
 
-# Large raw dataset files that exceed GitHub's size limits (download via Kaggle/Colab instead)
-data/raw/sessions.csv
+# Raw competition data: download on demand via `make download-data` (Kaggle API)
+# instead of versioning it — keeps the repository small and avoids GitHub's
+# 100 MB file size limit (sessions.csv alone is ~600 MB).
+data/raw/*.csv
+data/raw/*.zip
+!data/raw/.gitkeep
+data/raw/.kaggle/
+
+# macOS
+.DS_Store

@@ -80,18 +80,32 @@ python -m pip install -r requirements.txt -r requirements-api.txt
 PYTHONPATH=src uvicorn airbnb_first_booking.api:app --reload
 ```
 
-### Reproducing the full pipeline (data → train → serve)
+### Reproducing the full pipeline (download → train → serve)
+
+The raw competition data is **not** stored in this repository (see
+[section 5](#5-data-source)) — it is fetched on demand from Kaggle:
 
 ```bash
 python -m pip install -r requirements.txt
+
+# 1. Download the dataset from Kaggle into data/raw/ (requires a Kaggle API token)
+make download-data                                                  # or: bash scripts/download_data.sh
+
+# 2. Run the pipeline
 PYTHONPATH=src python -m airbnb_first_booking.cli validate-config   # sanity-check configs/project.toml
 PYTHONPATH=src python -m airbnb_first_booking.cli profile           # writes reports/data_profile.json
 PYTHONPATH=src python -m airbnb_first_booking.cli train             # writes models/model.joblib + reports/metrics.json
 PYTHONPATH=src python -m airbnb_first_booking.cli predict --input data/raw/test_users.csv
 ```
 
+`make download-data` installs the `kaggle` CLI if missing, downloads the
+competition archive into `data/raw/`, and extracts it — see
+[`scripts/download_data.sh`](scripts/download_data.sh) and
+[`data/raw/README.md`](data/raw/README.md) for authentication setup
+(you'll need a `kaggle.json` API token).
+
 `make` shortcuts for all of the above are available — see [`Makefile`](Makefile)
-(`make install`, `make profile`, `make train`, `make api`, `make docker-run`, `make test`).
+(`make install`, `make download-data`, `make profile`, `make train`, `make api`, `make docker-run`, `make test`).
 
 ### Notebooks (the analytical story)
 
@@ -121,7 +135,19 @@ lives in [`docs/deployment.md`](docs/deployment.md).
 
 Source: Kaggle [Airbnb Recruiting New User Bookings](https://www.kaggle.com/competitions/airbnb-recruiting-new-user-bookings).
 
-Expected files under `data/raw/`:
+**Raw data is intentionally not committed to this repository** — `sessions.csv`
+alone is ~600 MB, well past GitHub's 100 MB limit, and shipping large binary
+data in a portfolio repo is poor practice anyway. Instead, `data/raw/` is
+populated on demand straight from Kaggle:
+
+```bash
+make download-data
+```
+
+(See [`scripts/download_data.sh`](scripts/download_data.sh) and
+[`data/raw/README.md`](data/raw/README.md) for the one-time Kaggle API token setup.)
+
+Expected files once downloaded:
 
 - `train_users_2.csv`
 - `test_users.csv`
@@ -130,9 +156,7 @@ Expected files under `data/raw/`:
 - `age_gender_bkts.csv`
 - `sample_submission_NDF.csv`
 
-The pipeline combines user signup data, session behavior and auxiliary
-reference tables. `sessions.csv` is large — for GitHub it is best to download
-it on demand (e.g. in Colab) instead of versioning it; see the Colab snippet below.
+The pipeline combines user signup data, session behavior and auxiliary reference tables.
 
 ## 6. Development Journey
 
@@ -189,7 +213,7 @@ business goal of engaging users earlier and more relevantly in their journey.
 - [`configs/project.toml`](configs/project.toml): single source of truth for data paths, target, metrics and modeling parameters.
 - [`src/airbnb_first_booking/`](src/airbnb_first_booking/): modular Python package for data loading, feature engineering, modeling, analysis and serving.
 - [`notebooks/`](notebooks/): the analytical journey, told through notebooks that reuse the same package code.
-- [`data/raw/`](data/raw/): files downloaded from Kaggle or the prepared analytical base.
+- [`data/raw/`](data/raw/): empty in git — populated on demand via `make download-data` (see [`scripts/download_data.sh`](scripts/download_data.sh)).
 - [`reports/`](reports/): metrics, profiles and other generated results.
 - `models/`: the trained model artifact, ready to be mounted into the API container.
 - [`Dockerfile`](Dockerfile) / [`docker-compose.yml`](docker-compose.yml): containerized, one-command deployment of the prediction API.
@@ -218,10 +242,7 @@ files.upload()  # upload your kaggle.json file
 !mkdir -p ~/.kaggle
 !cp kaggle.json ~/.kaggle/kaggle.json
 !chmod 600 ~/.kaggle/kaggle.json
-!mkdir -p data/raw
-!python -m pip install -q kaggle
-!kaggle competitions download -c airbnb-recruiting-new-user-bookings -p data/raw
-!find data/raw -maxdepth 1 -name "*.zip" -exec unzip -q -o {} -d data/raw \;
+!make download-data
 ```
 
 Run the main pipeline:

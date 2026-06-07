@@ -1,7 +1,10 @@
-.PHONY: install profile train analyze test api docker-build docker-run docker-stop
+.PHONY: install download-data profile train analyze test api docker-build docker-run docker-stop
 
 install:
 	python -m pip install -r requirements.txt -r requirements-api.txt
+
+download-data:
+	bash scripts/download_data.sh
 
 profile:
 	PYTHONPATH=src python -m airbnb_first_booking.cli profile
