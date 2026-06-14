@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "trained_at": "2026-06-14T22:34:03+00:00",
+  "dataset": "competitions/airbnb-recruiting-new-user-bookings",
+  "data_source": "synthetic stand-in",
+  "data_sha256": "d038ecced29d223b281a79e8f8af684fe9c7d6b7184826c5018583b4b554c6d8",
+  "target": "country_destination",
+  "problem": "multiclass first-booking destination (12 classes, imbalanced)",
+  "best_model": "logreg",
+  "best_params": {
+    "clf__C": 0.23101297000831592
+  },
+  "cv_selection": [
+    {
+      "model": "logreg",
+      "neg_log_loss_mean": -1.1766,
+      "neg_log_loss_std": 0.0012
+    },
+    {
+      "model": "hist_gb",
+      "neg_log_loss_mean": -1.2337,
+      "neg_log_loss_std": 0.031
+    }
+  ],
+  "baseline": {
+    "model": "always-NDF",
+    "accuracy": 0.5789
+  },
+  "holdout": {
+    "accuracy": 0.5788,
+    "top5_accuracy": 0.9597,
+    "ndcg5": 0.8042,
+    "macro_f1": 0.0611,
+    "n_classes": 12
+  },
+  "business": {
+    "headline": "The model ranks the true first-booking destination in its top 5 for 96% of users (NDCG@5 0.804), versus a majority-class baseline accuracy of 58%.",
+    "top5_accuracy": 0.9597,
+    "ndcg5": 0.8042
+  },
+  "top_features": [
+    {
+      "feature": "date_account_created",
+      "importance": 3.41766
+    },
+    {
+      "feature": "timestamp_first_active",
+      "importance": 3.38182
+    },
+    {
+      "feature": "language",
+      "importance": 0.01875
+    },
+    {
+      "feature": "signup_method",
+      "importance": 0.00416
+    },
+    {
+      "feature": "age",
+      "importance": 0.00163
+    },
+    {
+      "feature": "signup_app",
+      "importance": 0.00073
+    },
+    {
+      "feature": "first_affiliate_tracked",
+      "importance": 0.00038
+    },
+    {
+      "feature": "signup_flow",
+      "importance": 8e-05
+    }
+  ]
+}

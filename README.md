@@ -1,269 +1,109 @@
-# Airbnb Predict First Booking
-
-A data science portfolio project built on the Kaggle challenge
-[Airbnb Recruiting New User Bookings](https://www.kaggle.com/competitions/airbnb-recruiting-new-user-bookings).
-
-It follows the end-to-end machine learning project checklist popularized by
-*Hands-On Machine Learning with Scikit-Learn and PyTorch* (Aurélien Géron):
-frame the business problem, explore and prepare the data, train and evaluate
-models, translate results into business value, and ship a reproducible,
-deployable solution — not just a notebook.
-
-> **For recruiters / reviewers:** jump straight to [section 3, "How to Run This Project"](#3-how-to-run-this-project) for a copy-paste path to a working API in under five minutes.
-
-## 1. Business Problem
-
-Airbnb wants to anticipate the first destination country of new users so it
-can personalize communication, marketing campaigns and recommendations from
-the very start of the user journey.
-
-**Goal:** predict the first booking destination of new Airbnb users and
-produce a solution aligned with the Kaggle submission format (a ranked top-5
-list of destinations per user).
-
-**Primary metrics:** NDCG@5 (the official competition metric, implemented in
-[`models.py`](src/airbnb_first_booking/models.py)), macro F1 and balanced accuracy.
-
-## 2. Business Assumptions
-
-- The first booking is shaped by signup data, acquisition channel and session behavior.
-- The `NDF` class ("no destination found", i.e. no booking) is a relevant outcome on its own, not noise to discard.
-- Because the business action can recommend more than one destination, evaluation must reward good top-N rankings — hence NDCG@5 as the headline metric.
-
-## 3. How to Run This Project
-
-The fastest path to a working prediction API — no notebook required:
-
-```bash
-git clone <this-repository-url> airbnb-first-booking
-cd airbnb-first-booking
-docker compose up --build
-```
-
-Then, in another terminal:
-
-```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "records": [{
-      "id": "demo-1",
-      "date_account_created": "2014-01-01",
-      "timestamp_first_active": "20140101000000",
-      "gender": "FEMALE",
-      "age": 32,
-      "signup_method": "basic",
-      "signup_flow": 0,
-      "language": "en",
-      "affiliate_channel": "direct",
-      "affiliate_provider": "direct",
-      "first_affiliate_tracked": "untracked",
-      "signup_app": "Web",
-      "first_device_type": "Mac Desktop",
-      "first_browser": "Chrome"
-    }]
-  }'
-```
-
-You should get back a predicted destination class (and a confidence score, if
-the loaded model supports `predict_proba`). The `/health` endpoint is also
-available for a quick smoke test: `curl http://localhost:8000/health`.
-
-A pre-trained pipeline ships in [`models/model.joblib`](models/model.joblib),
-so the container starts ready to score — no training step needed to try it out.
-
-### Running without Docker
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-python -m pip install -r requirements.txt -r requirements-api.txt
-PYTHONPATH=src uvicorn airbnb_first_booking.api:app --reload
-```
-
-### Reproducing the full pipeline (download → train → serve)
-
-The raw competition data is **not** stored in this repository (see
-[section 5](#5-data-source)) — it is fetched on demand from Kaggle:
-
-```bash
-python -m pip install -r requirements.txt
-
-# 1. Download the dataset from Kaggle into data/raw/ (requires a Kaggle API token)
-make download-data                                                  # or: bash scripts/download_data.sh
-
-# 2. Run the pipeline
-PYTHONPATH=src python -m airbnb_first_booking.cli validate-config   # sanity-check configs/project.toml
-PYTHONPATH=src python -m airbnb_first_booking.cli profile           # writes reports/data_profile.json
-PYTHONPATH=src python -m airbnb_first_booking.cli train             # writes models/model.joblib + reports/metrics.json
-PYTHONPATH=src python -m airbnb_first_booking.cli predict --input data/raw/test_users.csv
-```
-
-`make download-data` installs the `kaggle` CLI if missing, downloads the
-competition archive into `data/raw/`, and extracts it — see
-[`scripts/download_data.sh`](scripts/download_data.sh) and
-[`data/raw/README.md`](data/raw/README.md) for authentication setup
-(you'll need a `kaggle.json` API token).
-
-`make` shortcuts for all of the above are available — see [`Makefile`](Makefile)
-(`make install`, `make download-data`, `make profile`, `make train`, `make api`, `make docker-run`, `make test`).
-
-### Notebooks (the analytical story)
-
-The `notebooks/` folder mirrors this same pipeline as a guided narrative —
-business framing, data understanding, EDA, feature engineering and modeling —
-and is the best place to see *why* each design decision was made. See
-[`notebooks/README.md`](notebooks/README.md) for the suggested reading order.
-To run them locally: `pip install -r requirements.txt && jupyter lab`.
-
-More deployment detail (architecture, configuration, request/response shape)
-lives in [`docs/deployment.md`](docs/deployment.md).
-
-## 4. Solution Strategy
-
-1. **Data Description:** validate schema, dimensions, missing values, types and granularity.
-2. **Feature Engineering:** create domain-driven variables (signup dates, account age, channel/device signals).
-3. **Data Filtering:** remove records with no analytical value or leakage risk (e.g. `date_first_booking`, only known after the outcome).
-4. **Exploratory Data Analysis:** validate hypotheses and separate relevant signal from noise.
-5. **Data Preparation:** impute, scale and one-hot encode variables inside a single scikit-learn `Pipeline`.
-6. **Feature Selection:** separate IDs, target, input variables and dropped columns via `configs/project.toml`.
-7. **Machine Learning Modelling:** train a reproducible baseline (logistic regression) and an ensemble alternative (`HistGradientBoostingClassifier`), selectable through configuration.
-8. **Evaluation:** compute technical metrics (accuracy, balanced accuracy, macro F1/precision/recall) *and* the ranking metric that actually matters for the business action — NDCG@5.
-9. **Business Translation:** turn metrics into a decision framework for personalized communication and campaign targeting.
-10. **Delivery:** persist reports, the trained pipeline and a predictions file, and serve everything through a versioned, containerized API.
-
-## 5. Data Source
-
-Source: Kaggle [Airbnb Recruiting New User Bookings](https://www.kaggle.com/competitions/airbnb-recruiting-new-user-bookings).
-
-**Raw data is intentionally not committed to this repository** — `sessions.csv`
-alone is ~600 MB, well past GitHub's 100 MB limit, and shipping large binary
-data in a portfolio repo is poor practice anyway. Instead, `data/raw/` is
-populated on demand straight from Kaggle:
-
-```bash
-make download-data
-```
-
-(See [`scripts/download_data.sh`](scripts/download_data.sh) and
-[`data/raw/README.md`](data/raw/README.md) for the one-time Kaggle API token setup.)
-
-Expected files once downloaded:
-
-- `train_users_2.csv`
-- `test_users.csv`
-- `sessions.csv`
-- `countries.csv`
-- `age_gender_bkts.csv`
-- `sample_submission_NDF.csv`
-
-The pipeline combines user signup data, session behavior and auxiliary reference tables.
-
-## 6. Development Journey
-
-The notebooks are organized to show the evolution of the analysis, from
-problem framing to the business translation of the results. They are also the
-best place to grab portfolio screenshots:
-
-- [`notebooks/00_business_understanding.ipynb`](notebooks/00_business_understanding.ipynb)
-- [`notebooks/01_data_understanding.ipynb`](notebooks/01_data_understanding.ipynb)
-- [`notebooks/02_exploratory_analysis.ipynb`](notebooks/02_exploratory_analysis.ipynb)
-- [`notebooks/03_feature_engineering.ipynb`](notebooks/03_feature_engineering.ipynb)
-- [`notebooks/04_modeling_and_business_results.ipynb`](notebooks/04_modeling_and_business_results.ipynb)
-
-## 7. Top Data Insights and Hypotheses
-
-- Users with higher session activity tend to leave the `NDF` ("no booking") class.
-- Affiliate channel and initial device hint at different destination profiles.
-- Implausible age values (e.g. birth years stored as ages) need correction so they don't contaminate the model.
-
-## 8. Model and Evaluation Approach
-
-A single scikit-learn `Pipeline` couples preprocessing (median/most-frequent
-imputation, scaling and one-hot encoding via a `ColumnTransformer`) with the
-estimator, so the exact same artifact can be trained, evaluated, batch-scored
-and served — avoiding train/serve skew. Two estimators are available through
-`configs/project.toml` (`[modeling].model_type`):
-
-- `logistic_regression` (default): fast, interpretable linear baseline with `class_weight = "balanced"`.
-- `gradient_boosting`: `HistGradientBoostingClassifier`, a histogram-based ensemble that handles large tabular datasets and mixed feature types well — the natural next step after a linear baseline, as recommended throughout *Hands-On Machine Learning*.
-
-Evaluation reports both technical classification metrics and **NDCG@5**, the
-ranking-aware metric used by the Kaggle leaderboard — because for this
-business action, getting the right destination into a top-5 list matters more
-than a single point prediction.
-
-## 9. Performance and Business Results
-
-A reproduced data profile is available at [`reports/data_profile.json`](reports/data_profile.json): 213,451 rows and 16 columns analyzed.
-
-Main pipeline outputs:
-
-- [`reports/metrics.json`](reports/metrics.json) — accuracy, balanced accuracy, macro F1/precision/recall and `ndcg_at_5`.
-- `models/model.joblib` — the trained, ready-to-serve pipeline.
-
-## 10. Business Translation
-
-The top-N destination scores can drive prioritized recommendations,
-personalized marketing campaigns and a meaningful reduction in generic
-communication sent to brand-new users — directly supporting the original
-business goal of engaging users earlier and more relevantly in their journey.
-
-## 11. Repository Structure
-
-- [`configs/project.toml`](configs/project.toml): single source of truth for data paths, target, metrics and modeling parameters.
-- [`src/airbnb_first_booking/`](src/airbnb_first_booking/): modular Python package for data loading, feature engineering, modeling, analysis and serving.
-- [`notebooks/`](notebooks/): the analytical journey, told through notebooks that reuse the same package code.
-- [`data/raw/`](data/raw/): empty in git — populated on demand via `make download-data` (see [`scripts/download_data.sh`](scripts/download_data.sh)).
-- [`reports/`](reports/): metrics, profiles and other generated results.
-- `models/`: the trained model artifact, ready to be mounted into the API container.
-- [`Dockerfile`](Dockerfile) / [`docker-compose.yml`](docker-compose.yml): containerized, one-command deployment of the prediction API.
-
-## 12. Running on Google Colab
-
-1. Open a new notebook on Google Colab.
-2. Generate a Kaggle API token at Kaggle > Account > API > Create New Token.
-3. Run the cells below.
-
-Clone the repository and install dependencies:
-
-```python
-REPO_URL = "https://github.com/<your-username>/<this-repository>.git"
-!git clone {REPO_URL} project
-%cd project
-!python -m pip install -q -r requirements.txt
-```
-
-Download or prepare the data:
-
-```python
-from google.colab import files
-files.upload()  # upload your kaggle.json file
-
-!mkdir -p ~/.kaggle
-!cp kaggle.json ~/.kaggle/kaggle.json
-!chmod 600 ~/.kaggle/kaggle.json
-!make download-data
-```
-
-Run the main pipeline:
-
-```python
-!PYTHONPATH=src python -m airbnb_first_booking.cli validate-config
-!PYTHONPATH=src python -m airbnb_first_booking.cli profile
-!PYTHONPATH=src python -m airbnb_first_booking.cli train
-```
-
-## 13. Tests
-
-```bash
-python -m pytest
-# or: make test
-```
-
-## 14. Next Steps to Improve
-
-- Run a systematic comparison between the linear baseline and the gradient
-  boosting option (`model_type = "gradient_boosting"`) with cross-validated NDCG@5.
-- Explore session-level aggregated features from `sessions.csv` (the richest, currently underused signal).
-- Add a temporal validation split that better mirrors the production scenario (predicting *future* signups).
-- Generate a Kaggle-formatted submission file with the top-5 destinations per user.
+# Airbnb First Booking — Destination Ranker
+
+> Multiclass classification · Ranking (NDCG@5) · Imbalanced 12-class problem
+
+## Business Problem
+
+When a user signs up for Airbnb, personalizing onboarding — recommended listings, content,
+language, currency — depends on where they are likely to travel. The decision the model informs is
+**how to tailor the first-session experience**, by ranking the destinations a new user is most
+likely to book first (12 outcomes, including NDF: no booking in the window).
+
+Most users do not book at all (NDF is ~58%), so single-label accuracy is a trap: always predicting
+NDF already scores 58% while telling the product team nothing. The useful output is a **ranking** of
+likely destinations, judged by NDCG@5 (the competition's metric) — does the true destination appear
+high in the top-5? The cost of error is a missed personalization opportunity, not a hard
+misclassification.
+
+## Dataset
+
+[Airbnb New User Bookings](https://www.kaggle.com/c/airbnb-recruiting-new-user-bookings) (consent-gated).
+
+The competition rules prohibit redistributing the data, so this repository ships a **schema-faithful
+synthetic stand-in** (same columns, realistic marginal distributions including the ~58% NDF rate and
+planted demographic-destination structure) so the pipeline is fully reproducible. Dropping the real
+`train_users_2.csv` into `data/raw/` makes the pipeline train on the genuine data unchanged. **The
+metrics below are on the synthetic stand-in and are illustrative of the pipeline, not real Airbnb
+findings.**
+
+| Property | Value |
+|----------|-------|
+| Users | 45,000 (synthetic stand-in) |
+| Target | `country_destination` (12 classes) |
+| Majority class | NDF, ~58% |
+| Fields | demographics, signup method/app, affiliate, device, browser, dates |
+
+## Solution Strategy
+
+1. **Acquisition** — use the real competition file if present in `data/raw`, otherwise the versioned synthetic stand-in.
+2. **Leakage control** — `date_first_booking` is dropped: it is populated only for users who booked, so it is null exactly when the label is NDF and would leak the target.
+3. **Feature engineering** — account-creation calendar parts, days between first activity and signup, and age cleaning (out-of-range and birth-year entries), inside the model `Pipeline`.
+4. **Imbalance** — because the goal is ranking under a dominant NDF class, the model is selected on log-loss (a proper probability score) and judged on NDCG@5; class re-weighting was tried but degraded ranking calibration, so it is not used.
+5. **Model selection** — `StratifiedKFold` cross-validation compares a multinomial logistic model and histogram gradient boosting on log-loss; the winner is tuned with `RandomizedSearchCV`.
+6. **Evaluation** — accuracy, top-5 accuracy, NDCG@5 and macro-F1 on a stratified holdout, against a majority-class baseline.
+
+## Top Insights & Hypotheses
+
+- **Accuracy is the wrong lens.** A majority-class predictor scores 58%; the model matches it on accuracy while adding ranking value the baseline cannot.
+- **The model ranks the true destination in its top 5 for 96% of users** (NDCG@5 0.80), which is what onboarding personalization actually needs.
+- **Signup method, app and language carry the most signal** for separating bookers from NDF and steering destination probabilities.
+- **Macro-F1 stays low** because the minority destinations are rarely the single most-likely outcome — expected when NDF dominates, and the reason ranking, not single-label accuracy, is the right objective.
+
+## Engineered Features
+
+| Feature | Definition | Business signal |
+|---------|-----------|-----------------|
+| account_year / month / dayofweek | calendar parts of signup date | seasonality and cohort effects |
+| days_active_before_signup | days between first activity and account creation | consideration time before committing |
+| age (cleaned) | out-of-range and birth-year entries corrected | reliable demographic input |
+
+## Model
+
+A multinomial logistic model (selected by cross-validation on log-loss, tuned with randomized
+search) inside a `Pipeline` that owns the engineering and encoding. The majority-class predictor
+sets the accuracy floor.
+
+| Model | Holdout accuracy | Top-5 accuracy | NDCG@5 | Macro-F1 |
+|-------|-----------------:|---------------:|-------:|---------:|
+| Always-NDF baseline | 0.579 | — | — | — |
+| **Logistic (final)** | **0.579** | **0.960** | **0.804** | 0.061 |
+
+## Business Results
+
+The model matches the trivial baseline on accuracy (both ~58%, set by the NDF rate) while delivering
+what the baseline cannot: a **ranked top-5 of destinations that contains the true outcome for 96% of
+users, NDCG@5 0.80**. Onboarding can use this ranking to pre-load relevant destinations, content and
+language for each new user, focusing effort on the minority who will actually book.
+
+## How to Run
+
+1. **Clone**
+   ```
+   git clone https://github.com/pmusachio/airbnb-first-booking.git
+   cd airbnb-first-booking
+   ```
+2. **Environment**
+   ```
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. **Data** — a synthetic stand-in is versioned under `data/sample/`. For real results, accept the competition rules on Kaggle and place `train_users_2.csv` in `data/raw/`.
+4. **Run the pipeline**
+   ```
+   python -m src.pipeline
+   ```
+5. **Tests**
+   ```
+   pytest tests/
+   ```
+6. **App (local)**
+   ```
+   streamlit run app/streamlit_app.py
+   ```
+7. **Live app** — [huggingface.co/spaces/pmusachio/airbnb-first-booking](https://huggingface.co/spaces/pmusachio/airbnb-first-booking) — rank a new user's likely destinations.
+
+## Next Steps
+
+- Replace the synthetic stand-in with the real competition data (drop-in) and re-run; the pipeline and contract are unchanged.
+- Add the `sessions.csv` behavioural features (action counts, time per action), the strongest predictors in the real competition, once real data is in place.
+- Optimize NDCG@5 directly with a learning-to-rank objective rather than a proxy log-loss, and calibrate the booking-vs-NDF split as a first-stage gate.
