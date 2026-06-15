@@ -1,75 +1,78 @@
 {
   "schema_version": "1.0",
-  "trained_at": "2026-06-14T22:34:03+00:00",
+  "trained_at": "2026-06-15T00:03:24+00:00",
   "dataset": "competitions/airbnb-recruiting-new-user-bookings",
-  "data_source": "synthetic stand-in",
-  "data_sha256": "d038ecced29d223b281a79e8f8af684fe9c7d6b7184826c5018583b4b554c6d8",
+  "data_source": "kaggle",
+  "data_sha256": "1d57dabe8b06534e51f86520ce6a66b6f67cce1704fb77a3fcfb596124858818",
   "target": "country_destination",
   "problem": "multiclass first-booking destination (12 classes, imbalanced)",
-  "best_model": "logreg",
+  "best_model": "hist_gb",
   "best_params": {
-    "clf__C": 0.23101297000831592
+    "clf__max_leaf_nodes": 15,
+    "clf__max_iter": 400,
+    "clf__max_depth": 6,
+    "clf__learning_rate": 0.03059949687207196
   },
   "cv_selection": [
     {
-      "model": "logreg",
-      "neg_log_loss_mean": -1.1766,
-      "neg_log_loss_std": 0.0012
+      "model": "hist_gb",
+      "neg_log_loss_mean": -1.0742,
+      "neg_log_loss_std": 0.0038
     },
     {
-      "model": "hist_gb",
-      "neg_log_loss_mean": -1.2337,
-      "neg_log_loss_std": 0.031
+      "model": "logreg",
+      "neg_log_loss_mean": -1.1297,
+      "neg_log_loss_std": 0.0002
     }
   ],
   "baseline": {
     "model": "always-NDF",
-    "accuracy": 0.5789
+    "accuracy": 0.5835
   },
   "holdout": {
-    "accuracy": 0.5788,
-    "top5_accuracy": 0.9597,
-    "ndcg5": 0.8042,
-    "macro_f1": 0.0611,
+    "accuracy": 0.6303,
+    "top5_accuracy": 0.9588,
+    "ndcg5": 0.8236,
+    "macro_f1": 0.1023,
     "n_classes": 12
   },
   "business": {
-    "headline": "The model ranks the true first-booking destination in its top 5 for 96% of users (NDCG@5 0.804), versus a majority-class baseline accuracy of 58%.",
-    "top5_accuracy": 0.9597,
-    "ndcg5": 0.8042
+    "headline": "The model ranks the true first-booking destination in its top 5 for 96% of users (NDCG@5 0.824), versus a majority-class baseline accuracy of 58%.",
+    "top5_accuracy": 0.9588,
+    "ndcg5": 0.8236
   },
   "top_features": [
     {
+      "feature": "age",
+      "importance": 0.12746
+    },
+    {
       "feature": "date_account_created",
-      "importance": 3.41766
+      "importance": 0.0646
     },
     {
       "feature": "timestamp_first_active",
-      "importance": 3.38182
-    },
-    {
-      "feature": "language",
-      "importance": 0.01875
+      "importance": 0.04723
     },
     {
       "feature": "signup_method",
-      "importance": 0.00416
+      "importance": 0.03764
     },
     {
-      "feature": "age",
-      "importance": 0.00163
+      "feature": "gender",
+      "importance": 0.01573
     },
     {
-      "feature": "signup_app",
-      "importance": 0.00073
-    },
-    {
-      "feature": "first_affiliate_tracked",
-      "importance": 0.00038
+      "feature": "first_device_type",
+      "importance": 0.01493
     },
     {
       "feature": "signup_flow",
-      "importance": 8e-05
+      "importance": 0.00977
+    },
+    {
+      "feature": "affiliate_channel",
+      "importance": 0.00608
     }
   ]
 }

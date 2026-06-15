@@ -16,14 +16,13 @@ PIPELINE_PATH: Path = MODELS_DIR / "pipeline.joblib"
 MODEL_CARD_PATH: Path = MODELS_DIR / "model_card.json"
 PROCESSED_PATH: Path = PROCESSED_DIR / "train.parquet"
 
-# The Airbnb competition data is consent-gated and cannot be redistributed, so a
-# schema-faithful synthetic stand-in is versioned here. Drop the real
-# train_users_2.csv into data/raw to train on the genuine data instead.
-SAMPLE_FILENAME: str = "airbnb_users_synthetic.csv"
+# Trained on the real competition data (train_users_2.csv in data/raw). A real
+# stratified subsample is versioned as the offline fallback.
+SAMPLE_FILENAME: str = "airbnb_users_sample.csv"
 SAMPLE_PATH: Path = SAMPLE_DIR / SAMPLE_FILENAME
 KAGGLE_DATASET: str = "competitions/airbnb-recruiting-new-user-bookings"
 REAL_TRAIN_FILENAME: str = "train_users_2.csv"
-SYNTHETIC: bool = True
+SYNTHETIC: bool = False
 
 TARGET: str = "country_destination"
 ID_COL: str = "id"
